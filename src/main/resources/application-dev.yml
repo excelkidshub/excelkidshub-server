@@ -1,0 +1,94 @@
+# ============================================================
+# application-dev.yml — Local development overrides
+# ============================================================
+# Activated with: --spring.profiles.active=dev
+#
+# HOW TO RUN LOCALLY:
+#   Set these environment variables in your shell/IDE before starting,
+#   OR copy .env.example to .env and fill in values, then load it.
+#
+#   Required env vars for local dev:
+#     DATABASE_URL      = jdbc:postgresql://localhost:5432/excelkidshub_dev
+#     DATABASE_USERNAME = postgres
+#     DATABASE_PASSWORD = (your local postgres password)
+#     JWT_SECRET        = (any 64-char string for local dev)
+#     RAZORPAY_KEY_ID   = rzp_test_xxxx
+#     RAZORPAY_KEY_SECRET = (your razorpay test secret)
+#     RAZORPAY_WEBHOOK_SECRET = (any string for local testing)
+#
+#   Quick way — PowerShell:
+#     $env:DATABASE_URL="jdbc:postgresql://localhost:5432/excelkidshub_dev"
+#     $env:DATABASE_USERNAME="postgres"
+#     $env:DATABASE_PASSWORD="postgres"
+#     $env:JWT_SECRET="devlocalonlysecret1234567890abcdef1234567890abcdef12345678901234"
+#     $env:RAZORPAY_KEY_ID="rzp_test_placeholder"
+#     $env:RAZORPAY_KEY_SECRET="placeholder"
+#     $env:RAZORPAY_WEBHOOK_SECRET="placeholder"
+#
+# ⚠ Never put real passwords in this file. It is committed to Git.
+# ============================================================
+
+spring:
+  # ── Local Postgres ─────────────────────────────────────────
+  # Values come from environment variables (see header above)
+  datasource:
+    url:      ${DATABASE_URL:jdbc:postgresql://localhost:5432/excelkidshub_dev}
+    username: ${DATABASE_USERNAME:postgres}
+    password: ${DATABASE_PASSWORD}   # No default — must be set explicitly
+
+  # ── Show SQL for debugging ─────────────────────────────────
+  jpa:
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+
+  # ── Flyway: run all migrations on startup ──────────────────
+  flyway:
+    enabled: true
+
+  # ── Mail: point to local MailHog/Mailpit for dev ───────────
+  # Install: https://github.com/axllent/mailpit
+  # Run: mailpit  (listens on localhost:1025, UI on localhost:8025)
+  mail:
+    host: localhost
+    port: 1025
+    username: ""
+    password: ""
+    properties:
+      mail:
+        smtp:
+          auth: false
+          starttls:
+            enable: false
+
+# ── Verbose logging ───────────────────────────────────────────
+logging:
+  level:
+    in.excelkidshub.platform: DEBUG
+    org.springframework.security: DEBUG
+    org.springframework.web: DEBUG
+    org.hibernate.SQL: DEBUG
+    org.flywaydb: DEBUG
+
+# ── App overrides for local ───────────────────────────────────
+app:
+  jwt:
+    secret:     ${JWT_SECRET}        # Must be set in env — see header
+    expiration: 86400000
+
+  razorpay:
+    key-id:         ${RAZORPAY_KEY_ID:rzp_test_TNCB78meaMQa4I}
+    key-secret:     ${RAZORPAY_KEY_SECRET:w8mOWnevo1K6wTVEmXrOvkHz}
+    webhook-secret: ${RAZORPAY_WEBHOOK_SECRET:placeholder_webhook_secret}
+
+  frontend:
+    main-url: http://localhost:3000
+    read-url:  http://localhost:5173
+
+  cors:
+    allowed-origins: http://localhost:3000,http://localhost:5173,http://localhost:8080,http://127.0.0.1:5500
+
+  mail:
+    from: dev@excelkidshub.in
+    from-name: ExcelKidsHub Dev

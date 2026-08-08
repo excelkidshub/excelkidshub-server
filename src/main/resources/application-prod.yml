@@ -1,0 +1,69 @@
+# ============================================================
+# application-prod.yml — Production overrides (Oracle Cloud)
+# ============================================================
+# Activated with: --spring.profiles.active=prod
+# All secrets come from /opt/excelkidshub/.env loaded by systemd.
+#
+# This file contains NO secrets — safe to commit to Git.
+# ============================================================
+
+spring:
+  # ── Neon PostgreSQL (pooled connection) ───────────────────
+  # Values come from environment: DATABASE_URL, DATABASE_USERNAME, DATABASE_PASSWORD
+  datasource:
+    hikari:
+      maximum-pool-size: 3          # Neon free tier max 5 concurrent connections
+      minimum-idle: 1
+      idle-timeout: 120000          # 2 min — Neon suspends idle connections
+      max-lifetime: 600000          # 10 min — well under Neon's 5-min idle timeout
+      connection-timeout: 30000
+      connection-test-query: SELECT 1
+      keepalive-time: 60000         # Ping every 60s to prevent Neon suspension
+
+  # ── JPA: validate only, never touch schema ─────────────────
+  jpa:
+    show-sql: false
+    open-in-view: false
+    properties:
+      hibernate:
+        format_sql: false
+
+  # ── Flyway: run migrations on startup ──────────────────────
+  flyway:
+    enabled: true
+    out-of-order: false
+
+  # ── Email via Gmail SMTP ───────────────────────────────────
+  # Values come from environment: MAIL_USERNAME, MAIL_PASSWORD
+  mail:
+    host: smtp.gmail.com
+    port: 587
+
+# ── Server: production hardening ──────────────────────────────
+server:
+  port: 8080
+  tomcat:
+    max-threads: 20          # E2.1.Micro has 1GB RAM — keep low
+    min-spare-threads: 2
+    accesslog:
+      enabled: false               # nginx handles access logs
+
+# ── Logging: minimal noise in production ──────────────────────
+logging:
+  level:
+    root: WARN
+    in.excelkidshub.platform: INFO
+    org.springframework.security: WARN
+    org.springframework.web: WARN
+    org.hibernate: WARN
+    org.flywaydb: INFO
+
+# ── Swagger: disabled in production ───────────────────────────
+# The /v3/api-docs and /swagger-ui/** paths are publicly accessible
+# by default. In production, disable the UI to avoid exposing API
+# structure to the public.
+springdoc:
+  api-docs:
+    enabled: false
+  swagger-ui:
+    enabled: false

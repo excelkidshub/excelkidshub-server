@@ -1,0 +1,11 @@
+package in.excelkidshub.platform.common.exception;
+
+/**
+ * Exception thrown when a request is invalid or malformed.
+ */
+public class BadRequestException extends RuntimeException {
+
+    public BadRequestException(String message) {
+        super(message);
+    }
+}
