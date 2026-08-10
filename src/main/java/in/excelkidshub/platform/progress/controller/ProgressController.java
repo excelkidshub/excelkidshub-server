@@ -1,7 +1,10 @@
 package in.excelkidshub.platform.progress.controller;
 
 import in.excelkidshub.platform.common.dto.ApiResponse;
+import in.excelkidshub.platform.progress.dto.ActivityProgressDto;
+import in.excelkidshub.platform.progress.dto.ActivityProgressSummaryDto;
 import in.excelkidshub.platform.progress.dto.ProgressDto;
+import in.excelkidshub.platform.progress.dto.SaveActivityProgressRequest;
 import in.excelkidshub.platform.progress.dto.SaveProgressRequest;
 import in.excelkidshub.platform.progress.service.ProgressService;
 import in.excelkidshub.platform.user.entity.User;
@@ -24,6 +27,8 @@ import java.util.List;
  * POST /progress/save          — called by reading studio on every page load
  * GET  /progress/summary       — all courses progress, used by dashboard
  * GET  /progress/{courseId}    — progress for a single course
+ * POST /progress/activity      — save practice/game/assessment completion
+ * GET  /progress/activities/summary — activity counts for progress page
  */
 @RestController
 @RequestMapping("/progress")
@@ -56,5 +61,22 @@ public class ProgressController {
 
         ProgressDto dto = progressService.getByCourseId(currentUser.getId(), courseId);
         return ResponseEntity.ok(ApiResponse.success("Progress loaded", dto));
+    }
+
+    @PostMapping("/activity")
+    public ResponseEntity<ApiResponse<ActivityProgressDto>> saveActivity(
+            @Valid @RequestBody SaveActivityProgressRequest request,
+            @AuthenticationPrincipal User currentUser) {
+
+        ActivityProgressDto dto = progressService.saveActivity(currentUser.getId(), request);
+        return ResponseEntity.ok(ApiResponse.success("Activity progress saved", dto));
+    }
+
+    @GetMapping("/activities/summary")
+    public ResponseEntity<ApiResponse<ActivityProgressSummaryDto>> getActivitySummary(
+            @AuthenticationPrincipal User currentUser) {
+
+        ActivityProgressSummaryDto summary = progressService.getActivitySummary(currentUser.getId());
+        return ResponseEntity.ok(ApiResponse.success("Activity summary loaded", summary));
     }
 }

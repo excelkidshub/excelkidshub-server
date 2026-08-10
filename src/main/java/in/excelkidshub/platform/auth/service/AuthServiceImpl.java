@@ -29,6 +29,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -115,11 +116,19 @@ public class AuthServiceImpl implements AuthService {
 
         log.info("User logged in: id={}", user.getId());
 
-        Optional<Subscription> activeSub = subscriptionRepository
+        List<Subscription> activeSubs = subscriptionRepository
                 .findByUserIdAndStatusAndActiveTrue(user.getId(), STATUS_ACTIVE);
 
+        // Pick the most recent subscription if multiple exist
+        Subscription activeSub = null;
+        if (!activeSubs.isEmpty()) {
+            activeSub = activeSubs.stream()
+                    .max((s1, s2) -> s1.getStartDate().compareTo(s2.getStartDate()))
+                    .orElse(activeSubs.get(0));
+        }
+
         String token = jwtUtil.generateToken(user.getId(), user.getEmail(), user.getRole().getName());
-        return buildAuthResponse(token, user, activeSub.orElse(null));
+        return buildAuthResponse(token, user, activeSub);
     }
 
     // ── /me ───────────────────────────────────────────────────────────────────
@@ -134,12 +143,20 @@ public class AuthServiceImpl implements AuthService {
             throw new UnauthorizedException("Account is disabled.");
         }
 
-        Optional<Subscription> activeSub = subscriptionRepository
+        List<Subscription> activeSubs = subscriptionRepository
                 .findByUserIdAndStatusAndActiveTrue(userId, STATUS_ACTIVE);
+
+        // Pick the most recent subscription if multiple exist
+        Subscription activeSub = null;
+        if (!activeSubs.isEmpty()) {
+            activeSub = activeSubs.stream()
+                    .max((s1, s2) -> s1.getStartDate().compareTo(s2.getStartDate()))
+                    .orElse(activeSubs.get(0));
+        }
 
         // Re-issue a fresh token so the client always has a non-expiring session
         String token = jwtUtil.generateToken(user.getId(), user.getEmail(), user.getRole().getName());
-        return buildAuthResponse(token, user, activeSub.orElse(null));
+        return buildAuthResponse(token, user, activeSub);
     }
 
     // ── Forgot Password ───────────────────────────────────────────────────────
@@ -290,6 +307,7 @@ public class AuthServiceImpl implements AuthService {
                     .startDate(subscription.getStartDate())
                     .endDate(subscription.getEndDate())
                     .active(subscription.getEndDate() != null && !subscription.getEndDate().isBefore(LocalDate.now()))
+                    .paymentId(subscription.getPayment() != null ? subscription.getPayment().getId() : null)
                     .build();
         }
 

@@ -5,13 +5,17 @@ import in.excelkidshub.platform.admin.service.AdminService;
 import in.excelkidshub.platform.common.dto.ApiResponse;
 import in.excelkidshub.platform.common.dto.PageResponse;
 import in.excelkidshub.platform.course.dto.CourseDto;
+import in.excelkidshub.platform.payment.dto.AdminRefundActionRequest;
 import in.excelkidshub.platform.payment.dto.PlanDto;
+import in.excelkidshub.platform.payment.dto.RefundResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 
 /**
@@ -176,5 +180,33 @@ public class AdminController {
             @RequestParam boolean active) {
         adminService.setCourseStatus(id, active);
         return ResponseEntity.ok(ApiResponse.success(active ? "Course activated" : "Course deactivated"));
+    }
+
+    // ── Refunds ───────────────────────────────────────────────────────────────
+
+    @GetMapping("/refunds")
+    public ResponseEntity<ApiResponse<java.util.List<AdminRefundDto>>> getRefunds(
+            @RequestParam(required = false) String status) {
+        return ResponseEntity.ok(ApiResponse.success("Refunds loaded", adminService.getRefundRequests(status)));
+    }
+
+    @GetMapping("/refunds/pending")
+    public ResponseEntity<ApiResponse<java.util.List<AdminRefundDto>>> getPendingRefunds() {
+        return ResponseEntity.ok(ApiResponse.success("Pending refunds loaded", adminService.getPendingRefunds()));
+    }
+
+    @GetMapping("/refunds/{id}")
+    public ResponseEntity<ApiResponse<AdminRefundDto>> getRefundById(@PathVariable Long id) {
+        return ResponseEntity.ok(ApiResponse.success("Refund loaded", adminService.getRefundById(id)));
+    }
+
+    @PostMapping("/refunds/{id}/action")
+    public ResponseEntity<ApiResponse<RefundResponse>> processRefundAction(
+            @PathVariable Long id,
+            @RequestBody AdminRefundActionRequest request,
+            @AuthenticationPrincipal UserDetails userDetails) {
+        Long adminUserId = Long.parseLong(userDetails.getUsername());
+        return ResponseEntity.ok(ApiResponse.success("Refund action processed",
+                adminService.processRefundAction(id, adminUserId, request)));
     }
 }

@@ -53,7 +53,9 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                     String role  = jwtUtil.extractRole(token);
 
                     // Confirm user still exists and is active in DB
-                    Optional<User> userOpt = userRepository.findById(userId);
+                    // Use JOIN FETCH to eagerly load role — avoids LazyInitializationException
+                    // when Spring calls User.toString() outside a session after request completes.
+                    Optional<User> userOpt = userRepository.findByIdWithRole(userId);
                     if (userOpt.isPresent() && Boolean.TRUE.equals(userOpt.get().getActive())) {
                         UsernamePasswordAuthenticationToken auth =
                                 new UsernamePasswordAuthenticationToken(

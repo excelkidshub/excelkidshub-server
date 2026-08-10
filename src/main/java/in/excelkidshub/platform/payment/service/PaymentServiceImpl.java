@@ -46,10 +46,10 @@ import java.util.Optional;
 @RequiredArgsConstructor
 public class PaymentServiceImpl implements PaymentService {
 
-    private static final String STATUS_PENDING = "PENDING";
-    private static final String STATUS_SUCCESS = "SUCCESS";
-    private static final String STATUS_FAILED  = "FAILED";
-    private static final String SUB_ACTIVE     = "ACTIVE";
+    public static final String STATUS_PENDING = "PENDING";
+    public static final String STATUS_SUCCESS = "SUCCESS";
+    public static final String STATUS_FAILED  = "FAILED";
+    public static final String SUB_ACTIVE     = "ACTIVE";
 
     private final AppConfig              appConfig;
     private final PlanRepository         planRepository;

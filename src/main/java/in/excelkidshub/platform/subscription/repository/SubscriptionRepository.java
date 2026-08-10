@@ -27,9 +27,10 @@ public interface SubscriptionRepository extends JpaRepository<Subscription, Long
     List<Subscription> findByUserIdAndActiveTrue(Long userId);
 
     /**
-     * Find active subscription by user ID and status.
+     * Find active subscriptions by user ID and status.
+     * Returns list to handle multiple active subscriptions gracefully.
      */
-    Optional<Subscription> findByUserIdAndStatusAndActiveTrue(Long userId, String status);
+    List<Subscription> findByUserIdAndStatusAndActiveTrue(Long userId, String status);
 
     /**
      * Find subscriptions by plan ID.

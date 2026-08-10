@@ -2,9 +2,13 @@ package in.excelkidshub.platform.admin.service;
 
 import in.excelkidshub.platform.admin.dto.*;
 import in.excelkidshub.platform.course.dto.CourseDto;
+import in.excelkidshub.platform.payment.dto.AdminRefundActionRequest;
 import in.excelkidshub.platform.payment.dto.PlanDto;
+import in.excelkidshub.platform.payment.dto.RefundResponse;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+
+import java.util.List;
 
 public interface AdminService {
 
@@ -32,4 +36,10 @@ public interface AdminService {
     CourseDto createCourse(CourseDto dto);
     CourseDto updateCourse(Long id, CourseDto dto);
     void setCourseStatus(Long id, boolean active);
+
+    // Refund management
+    List<AdminRefundDto> getRefundRequests(String status);
+    List<AdminRefundDto> getPendingRefunds();
+    AdminRefundDto getRefundById(Long id);
+    RefundResponse processRefundAction(Long refundId, Long adminUserId, AdminRefundActionRequest request);
 }

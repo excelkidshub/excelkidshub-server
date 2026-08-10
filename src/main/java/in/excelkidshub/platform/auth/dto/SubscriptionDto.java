@@ -18,4 +18,5 @@ public class SubscriptionDto {
     private LocalDate startDate;
     private LocalDate endDate;
     private Boolean   active;
+    private Long      paymentId; // Added for refund eligibility check
 }

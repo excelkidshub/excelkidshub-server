@@ -3,9 +3,14 @@ package in.excelkidshub.platform.progress.service;
 import in.excelkidshub.platform.common.exception.ResourceNotFoundException;
 import in.excelkidshub.platform.course.entity.Course;
 import in.excelkidshub.platform.course.repository.CourseRepository;
+import in.excelkidshub.platform.progress.dto.ActivityProgressDto;
+import in.excelkidshub.platform.progress.dto.ActivityProgressSummaryDto;
 import in.excelkidshub.platform.progress.dto.ProgressDto;
+import in.excelkidshub.platform.progress.dto.SaveActivityProgressRequest;
 import in.excelkidshub.platform.progress.dto.SaveProgressRequest;
+import in.excelkidshub.platform.progress.entity.ActivityProgress;
 import in.excelkidshub.platform.progress.entity.StudentProgress;
+import in.excelkidshub.platform.progress.repository.ActivityProgressRepository;
 import in.excelkidshub.platform.progress.repository.StudentProgressRepository;
 import in.excelkidshub.platform.user.entity.User;
 import in.excelkidshub.platform.user.repository.UserRepository;
@@ -35,6 +40,7 @@ public class ProgressServiceImpl implements ProgressService {
     private static final String STATUS_COMPLETED   = "COMPLETED";
 
     private final StudentProgressRepository progressRepository;
+    private final ActivityProgressRepository activityProgressRepository;
     private final CourseRepository          courseRepository;
     private final UserRepository            userRepository;
 
@@ -134,6 +140,85 @@ public class ProgressServiceImpl implements ProgressService {
                 .completionPercentage(p.getCompletionPercentage() != null ? p.getCompletionPercentage() : 0)
                 .status(p.getStatus())
                 .lastAccessed(p.getLastAccessed())
+                .build();
+    }
+
+    // ── Activity Progress ───────────────────────────────────────────────────────
+
+    @Override
+    @Transactional
+    public ActivityProgressDto saveActivity(Long userId, SaveActivityProgressRequest request) {
+        Course course = courseRepository.findById(request.getCourseId())
+                .orElseThrow(() -> new ResourceNotFoundException("Course", request.getCourseId()));
+
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("User", userId));
+
+        // Upsert: find existing or create new
+        ActivityProgress activity = activityProgressRepository
+                .findByUserIdAndActivityId(userId, request.getActivityId())
+                .orElseGet(() -> ActivityProgress.builder()
+                        .user(user)
+                        .course(course)
+                        .activityType(request.getActivityType())
+                        .activityId(request.getActivityId())
+                        .completed(false)
+                        .build());
+
+        // Update fields
+        activity.setScore(request.getScore());
+        if (request.getCompleted() && !activity.getCompleted()) {
+            activity.setCompleted(true);
+            activity.setCompletedAt(LocalDateTime.now());
+        }
+
+        activity = activityProgressRepository.save(activity);
+
+        log.debug("Activity progress saved: userId={} activityType={} activityId={} completed={}",
+                userId, request.getActivityType(), request.getActivityId(), activity.getCompleted());
+
+        return toActivityDto(activity, course);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public ActivityProgressSummaryDto getActivitySummary(Long userId) {
+        long practiceCount = activityProgressRepository.countByUserIdAndActivityTypeAndCompletedTrue(
+                userId, "PRACTICE");
+        long gameCount = activityProgressRepository.countByUserIdAndActivityTypeAndCompletedTrue(
+                userId, "GAME");
+        long assessmentCount = activityProgressRepository.countByUserIdAndActivityTypeAndCompletedTrue(
+                userId, "ASSESSMENT");
+        long songsCount = activityProgressRepository.countByUserIdAndActivityTypeAndCompletedTrue(
+                userId, "SONGS");
+
+        List<ActivityProgress> recent = activityProgressRepository.findRecentByUserId(userId);
+        List<ActivityProgressDto> recentDtos = recent.stream()
+                .limit(10)
+                .map(ap -> toActivityDto(ap, ap.getCourse()))
+                .collect(Collectors.toList());
+
+        return ActivityProgressSummaryDto.builder()
+                .practiceCount(practiceCount)
+                .gameCount(gameCount)
+                .assessmentCount(assessmentCount)
+                .songsCount(songsCount)
+                .recentActivities(recentDtos)
+                .build();
+    }
+
+    private ActivityProgressDto toActivityDto(ActivityProgress ap, Course course) {
+        return ActivityProgressDto.builder()
+                .id(ap.getId())
+                .courseId(course != null ? course.getId() : null)
+                .courseTitle(course != null ? course.getTitle() : null)
+                .courseSlug(course != null ? course.getSlug() : null)
+                .activityType(ap.getActivityType())
+                .activityId(ap.getActivityId())
+                .score(ap.getScore())
+                .completed(ap.getCompleted())
+                .completedAt(ap.getCompletedAt())
+                .createdAt(ap.getCreatedAt())
                 .build();
     }
 }

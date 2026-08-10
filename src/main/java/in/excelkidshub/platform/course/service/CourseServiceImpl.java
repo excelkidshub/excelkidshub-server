@@ -141,9 +141,12 @@ public class CourseServiceImpl implements CourseService {
     // ── Private helpers ───────────────────────────────────────────────────────
 
     private Optional<Subscription> findActiveSubscription(Long userId) {
-        return subscriptionRepository
-                .findByUserIdAndStatusAndActiveTrue(userId, STATUS_ACTIVE)
-                .filter(s -> s.getEndDate() != null && !s.getEndDate().isBefore(LocalDate.now()));
+        List<Subscription> subscriptions = subscriptionRepository
+                .findByUserIdAndStatusAndActiveTrue(userId, STATUS_ACTIVE);
+
+        return subscriptions.stream()
+                .filter(s -> s.getEndDate() != null && !s.getEndDate().isBefore(LocalDate.now()))
+                .max((s1, s2) -> s1.getStartDate().compareTo(s2.getStartDate()));
     }
 
     private CourseAccessResponse buildAllowedResponse(Long userId, Course course) {

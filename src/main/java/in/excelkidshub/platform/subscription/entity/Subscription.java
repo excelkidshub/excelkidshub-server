@@ -1,6 +1,7 @@
 package in.excelkidshub.platform.subscription.entity;
 
 import in.excelkidshub.platform.common.entity.BaseEntity;
+import in.excelkidshub.platform.payment.entity.Payment;
 import in.excelkidshub.platform.user.entity.User;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
@@ -10,6 +11,7 @@ import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
 
 import java.time.LocalDate;
+import java.util.List;
 
 /**
  * Subscription entity representing user subscriptions to plans.
@@ -38,6 +40,9 @@ public class Subscription extends BaseEntity {
     @JoinColumn(name = "plan_id", nullable = false, foreignKey = @ForeignKey(name = "fk_subscriptions_plan"))
     private Plan plan;
 
+    @OneToMany(mappedBy = "subscription", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<Payment> payments;
+
     @Column(name = "start_date", nullable = false)
     private LocalDate startDate;
 
@@ -53,4 +58,18 @@ public class Subscription extends BaseEntity {
     @Column(name = "auto_renew", nullable = false)
     @Builder.Default
     private Boolean autoRenew = false;
+
+    /**
+     * Get the latest payment for this subscription.
+     * Returns null if no payments exist.
+     */
+    public Payment getPayment() {
+        if (payments == null || payments.isEmpty()) {
+            return null;
+        }
+        return payments.stream()
+                .filter(p -> p.getPaymentDate() != null)
+                .max((p1, p2) -> p1.getPaymentDate().compareTo(p2.getPaymentDate()))
+                .orElse(payments.get(payments.size() - 1));
+    }
 }

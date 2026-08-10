@@ -5,9 +5,14 @@ import in.excelkidshub.platform.common.exception.ResourceNotFoundException;
 import in.excelkidshub.platform.course.dto.CourseDto;
 import in.excelkidshub.platform.course.entity.Course;
 import in.excelkidshub.platform.course.repository.CourseRepository;
+import in.excelkidshub.platform.payment.dto.AdminRefundActionRequest;
 import in.excelkidshub.platform.payment.dto.PlanDto;
+import in.excelkidshub.platform.payment.dto.RefundResponse;
 import in.excelkidshub.platform.payment.entity.Payment;
+import in.excelkidshub.platform.payment.entity.Refund;
 import in.excelkidshub.platform.payment.repository.PaymentRepository;
+import in.excelkidshub.platform.payment.repository.RefundRepository;
+import in.excelkidshub.platform.payment.service.RefundService;
 import in.excelkidshub.platform.subscription.entity.Coupon;
 import in.excelkidshub.platform.subscription.entity.Plan;
 import in.excelkidshub.platform.subscription.entity.Subscription;
@@ -40,6 +45,8 @@ public class AdminServiceImpl implements AdminService {
     private final PlanRepository         planRepository;
     private final CourseRepository       courseRepository;
     private final CouponRepository       couponRepository;
+    private final RefundRepository       refundRepository;
+    private final RefundService          refundService;
 
     // ── Stats ─────────────────────────────────────────────────────────────────
 
@@ -307,11 +314,15 @@ public class AdminServiceImpl implements AdminService {
 
     private AdminUserDto toUserDto(User u) {
         String subStatus = null, subPlan = null;
-        var activeSub = subscriptionRepository
+        var activeSubs = subscriptionRepository
                 .findByUserIdAndStatusAndActiveTrue(u.getId(), "ACTIVE");
-        if (activeSub.isPresent()) {
-            subStatus = activeSub.get().getStatus();
-            subPlan   = activeSub.get().getPlan() != null ? activeSub.get().getPlan().getName() : null;
+        if (!activeSubs.isEmpty()) {
+            // Pick the most recent subscription by start date
+            var activeSub = activeSubs.stream()
+                    .max((s1, s2) -> s1.getStartDate().compareTo(s2.getStartDate()))
+                    .orElse(activeSubs.get(0));
+            subStatus = activeSub.getStatus();
+            subPlan   = activeSub.getPlan() != null ? activeSub.getPlan().getName() : null;
         }
         return AdminUserDto.builder()
                 .id(u.getId())
@@ -397,6 +408,72 @@ public class AdminServiceImpl implements AdminService {
                 .totalLessons(c.getTotalLessons())
                 .isFree(c.getIsFree())
                 .hasAccess(hasAccess)
+                .build();
+    }
+
+    // ── Refunds ───────────────────────────────────────────────────────────────
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<AdminRefundDto> getRefundRequests(String status) {
+        List<Refund> refunds = (status != null && !status.isBlank())
+                ? refundRepository.findByStatus(status.toUpperCase())
+                : refundRepository.findAll();
+        
+        // Sort newest first
+        refunds.sort((a, b) -> b.getRequestedAt() != null && a.getRequestedAt() != null
+                ? b.getRequestedAt().compareTo(a.getRequestedAt()) : 0);
+        
+        return refunds.stream().map(this::toRefundDto).collect(Collectors.toList());
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<AdminRefundDto> getPendingRefunds() {
+        List<Refund> refunds = refundRepository.findPendingRefunds();
+        return refunds.stream().map(this::toRefundDto).collect(Collectors.toList());
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public AdminRefundDto getRefundById(Long id) {
+        Refund refund = refundRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Refund", id));
+        return toRefundDto(refund);
+    }
+
+    @Override
+    @Transactional
+    public RefundResponse processRefundAction(Long refundId, Long adminUserId, AdminRefundActionRequest request) {
+        return refundService.processRefundAction(refundId, adminUserId, request);
+    }
+
+    private AdminRefundDto toRefundDto(Refund r) {
+        return AdminRefundDto.builder()
+                .id(r.getId())
+                .paymentId(r.getPayment() != null ? r.getPayment().getId() : null)
+                .razorpayOrderId(r.getPayment() != null ? r.getPayment().getRazorpayOrderId() : null)
+                .userId(r.getUser() != null ? r.getUser().getId() : null)
+                .userName(r.getUser() != null 
+                        ? r.getUser().getFirstName() + " " + r.getUser().getLastName() : null)
+                .userEmail(r.getUser() != null ? r.getUser().getEmail() : null)
+                .subscriptionId(r.getSubscription() != null ? r.getSubscription().getId() : null)
+                .planName(r.getSubscription() != null && r.getSubscription().getPlan() != null 
+                        ? r.getSubscription().getPlan().getName() : null)
+                .amount(r.getPayment() != null ? r.getPayment().getAmount() : null)
+                .purchaseDate(r.getPayment() != null ? r.getPayment().getPaymentDate() : null)
+                .requestedAt(r.getRequestedAt())
+                .requestReason(r.getRequestReason())
+                .status(r.getStatus())
+                .reviewedAt(r.getReviewedAt())
+                .reviewedBy(r.getReviewedBy() != null 
+                        ? r.getReviewedBy().getFirstName() + " " + r.getReviewedBy().getLastName() : null)
+                .adminNote(r.getAdminNote())
+                .refundAmount(r.getRefundAmount())
+                .razorpayRefundId(r.getRazorpayRefundId())
+                .processedAt(r.getProcessedAt())
+                .processedBy(r.getProcessedBy() != null 
+                        ? r.getProcessedBy().getFirstName() + " " + r.getProcessedBy().getLastName() : null)
                 .build();
     }
 }
