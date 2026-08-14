@@ -13,4 +13,5 @@ public class SlugCheckResponse {
 
     private Boolean allowed;
     private String  reason;   // "NOT_AUTHENTICATED" | "NO_SUBSCRIPTION" | "COURSE_NOT_IN_PLAN" | null
+    private Long     courseId; // Course ID for progress tracking (avoid duplicate API calls)
 }

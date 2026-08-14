@@ -13,12 +13,11 @@ spring:
   datasource:
     hikari:
       maximum-pool-size: 3          # Neon free tier max 5 concurrent connections
-      minimum-idle: 1
+      minimum-idle: 0               # Allow pool to drain completely to reduce idle compute usage
       idle-timeout: 120000          # 2 min — Neon suspends idle connections
       max-lifetime: 600000          # 10 min — well under Neon's 5-min idle timeout
       connection-timeout: 30000
       connection-test-query: SELECT 1
-      keepalive-time: 60000         # Ping every 60s to prevent Neon suspension
 
   # ── JPA: validate only, never touch schema ─────────────────
   jpa:

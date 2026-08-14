@@ -120,7 +120,7 @@ public class CourseServiceImpl implements CourseService {
         Course course = courseOpt.get();
 
         if (Boolean.TRUE.equals(course.getIsFree())) {
-            return SlugCheckResponse.builder().allowed(true).build();
+            return SlugCheckResponse.builder().allowed(true).courseId(course.getId()).build();
         }
 
         Optional<Subscription> subOpt = findActiveSubscription(userId);
@@ -135,7 +135,7 @@ public class CourseServiceImpl implements CourseService {
             return SlugCheckResponse.builder().allowed(false).reason("COURSE_NOT_IN_PLAN").build();
         }
 
-        return SlugCheckResponse.builder().allowed(true).build();
+        return SlugCheckResponse.builder().allowed(true).courseId(course.getId()).build();
     }
 
     // ── Private helpers ───────────────────────────────────────────────────────
