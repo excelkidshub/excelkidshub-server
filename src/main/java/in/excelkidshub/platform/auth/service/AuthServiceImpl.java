@@ -4,6 +4,7 @@ import in.excelkidshub.platform.auth.dto.AuthResponse;
 import in.excelkidshub.platform.auth.dto.LoginRequest;
 import in.excelkidshub.platform.auth.dto.RegisterRequest;
 import in.excelkidshub.platform.auth.dto.SubscriptionDto;
+import in.excelkidshub.platform.auth.dto.UpdateProfileRequest;
 import in.excelkidshub.platform.auth.dto.UserDto;
 import in.excelkidshub.platform.auth.entity.AuthToken;
 import in.excelkidshub.platform.auth.repository.AuthTokenRepository;
@@ -81,6 +82,7 @@ public class AuthServiceImpl implements AuthService {
                 .password(passwordEncoder.encode(request.getPassword()))
                 .firstName(request.getFirstName().trim())
                 .lastName(request.getLastName().trim())
+                .phone(request.getPhone() != null ? request.getPhone().trim() : null)
                 .role(studentRole)
                 .emailVerified(false)
                 .build();
@@ -155,6 +157,50 @@ public class AuthServiceImpl implements AuthService {
         }
 
         // Re-issue a fresh token so the client always has a non-expiring session
+        String token = jwtUtil.generateToken(user.getId(), user.getEmail(), user.getRole().getName());
+        return buildAuthResponse(token, user, activeSub);
+    }
+
+    // ── Update Profile ────────────────────────────────────────────────────────
+
+    @Override
+    @Transactional
+    public AuthResponse updateProfile(Long userId, UpdateProfileRequest request) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("User", userId));
+
+        if (!Boolean.TRUE.equals(user.getActive())) {
+            throw new UnauthorizedException("Account is disabled.");
+        }
+
+        // Update fields if provided
+        if (request.getFirstName() != null && !request.getFirstName().trim().isEmpty()) {
+            user.setFirstName(request.getFirstName().trim());
+        }
+
+        if (request.getLastName() != null && !request.getLastName().trim().isEmpty()) {
+            user.setLastName(request.getLastName().trim());
+        }
+
+        if (request.getPhone() != null && !request.getPhone().trim().isEmpty()) {
+            user.setPhone(request.getPhone().trim());
+        }
+
+        user = userRepository.save(user);
+        log.info("Profile updated for user id={}", userId);
+
+        // Get active subscription
+        List<Subscription> activeSubs = subscriptionRepository
+                .findByUserIdAndStatusAndActiveTrue(userId, STATUS_ACTIVE);
+
+        Subscription activeSub = null;
+        if (!activeSubs.isEmpty()) {
+            activeSub = activeSubs.stream()
+                    .max((s1, s2) -> s1.getStartDate().compareTo(s2.getStartDate()))
+                    .orElse(activeSubs.get(0));
+        }
+
+        // Re-issue a fresh token
         String token = jwtUtil.generateToken(user.getId(), user.getEmail(), user.getRole().getName());
         return buildAuthResponse(token, user, activeSub);
     }

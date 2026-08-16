@@ -5,6 +5,7 @@ import in.excelkidshub.platform.auth.dto.ForgotPasswordRequest;
 import in.excelkidshub.platform.auth.dto.LoginRequest;
 import in.excelkidshub.platform.auth.dto.RegisterRequest;
 import in.excelkidshub.platform.auth.dto.ResetPasswordRequest;
+import in.excelkidshub.platform.auth.dto.UpdateProfileRequest;
 import in.excelkidshub.platform.auth.service.AuthService;
 import in.excelkidshub.platform.common.dto.ApiResponse;
 import in.excelkidshub.platform.user.entity.User;
@@ -16,6 +17,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -27,7 +29,7 @@ import org.springframework.web.bind.annotation.RestController;
  * Public:  POST /auth/register, POST /auth/login,
  *          POST /auth/forgot-password, POST /auth/reset-password,
  *          GET  /auth/verify-email
- * JWT:     GET  /auth/me
+ * JWT:     GET  /auth/me, PUT /auth/me
  */
 @Slf4j
 @RestController
@@ -71,6 +73,21 @@ public class AuthController {
 
         AuthResponse response = authService.me(currentUser.getId());
         return ResponseEntity.ok(ApiResponse.success("User profile", response));
+    }
+
+    // ── Update Profile ─────────────────────────────────────────────────────────
+
+    /**
+     * Updates the authenticated user's profile (name, phone).
+     * The JWT filter sets the User entity as the principal — cast directly.
+     */
+    @PutMapping("/me")
+    public ResponseEntity<ApiResponse<AuthResponse>> updateProfile(
+            @Valid @RequestBody UpdateProfileRequest request,
+            @AuthenticationPrincipal User currentUser) {
+
+        AuthResponse response = authService.updateProfile(currentUser.getId(), request);
+        return ResponseEntity.ok(ApiResponse.success("Profile updated successfully", response));
     }
 
     // ── Forgot Password ───────────────────────────────────────────────────────
