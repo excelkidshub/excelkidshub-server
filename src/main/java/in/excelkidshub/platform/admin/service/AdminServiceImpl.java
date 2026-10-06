@@ -125,12 +125,30 @@ public class AdminServiceImpl implements AdminService {
 
     @Override
     @Transactional(readOnly = true)
-    public Page<AdminSubscriptionDto> getSubscriptions(String status, Pageable pageable) {
-        List<Subscription> all = (status != null && !status.isBlank())
-                ? subscriptionRepository.findAll().stream()
-                        .filter(s -> status.equalsIgnoreCase(s.getStatus()))
-                        .collect(Collectors.toList())
-                : subscriptionRepository.findAll();
+    public Page<AdminSubscriptionDto> getSubscriptions(String status, String search, Pageable pageable) {
+        List<Subscription> all = subscriptionRepository.findAll();
+
+        // Filter by status
+        if (status != null && !status.isBlank()) {
+            all = all.stream()
+                    .filter(s -> status.equalsIgnoreCase(s.getStatus()))
+                    .collect(Collectors.toList());
+        }
+
+        // Filter by search query (email or name)
+        if (search != null && !search.isBlank()) {
+            String q = search.toLowerCase();
+            all = all.stream()
+                    .filter(s -> {
+                        if (s.getUser() == null) return false;
+                        String email = s.getUser().getEmail() != null ? s.getUser().getEmail().toLowerCase() : "";
+                        String name  = ((s.getUser().getFirstName() != null ? s.getUser().getFirstName() : "")
+                                      + " " + (s.getUser().getLastName() != null ? s.getUser().getLastName() : ""))
+                                      .toLowerCase().trim();
+                        return email.contains(q) || name.contains(q);
+                    })
+                    .collect(Collectors.toList());
+        }
 
         // Sort newest first
         all.sort((a, b) -> b.getCreatedAt() != null && a.getCreatedAt() != null
@@ -153,6 +171,52 @@ public class AdminServiceImpl implements AdminService {
         sub.setStatus(status.toUpperCase());
         subscriptionRepository.save(sub);
         log.info("Admin: subscription {} set status={}", id, status);
+    }
+
+    @Override
+    @Transactional
+    public AdminSubscriptionDto grantSubscription(GrantSubscriptionRequest request) {
+        if (request.getEndDate().isBefore(request.getStartDate())) {
+            throw new IllegalArgumentException("endDate must be after startDate");
+        }
+        User user = userRepository.findById(request.getUserId())
+                .orElseThrow(() -> new ResourceNotFoundException("User", request.getUserId()));
+        Plan plan = planRepository.findById(request.getPlanId())
+                .orElseThrow(() -> new ResourceNotFoundException("Plan", request.getPlanId()));
+        Subscription sub = Subscription.builder()
+                .user(user)
+                .plan(plan)
+                .startDate(request.getStartDate())
+                .endDate(request.getEndDate())
+                .status("ACTIVE")
+                .autoRenew(false)
+                .build();
+        sub.setActive(true);
+        Subscription saved = subscriptionRepository.save(sub);
+        log.info("Admin: granted subscription id={} to user={} plan={} from={} to={} note={}",
+                saved.getId(), user.getEmail(), plan.getName(),
+                request.getStartDate(), request.getEndDate(),
+                request.getNote() != null ? request.getNote() : "—");
+        return toSubDto(saved);
+    }
+
+    @Override
+    @Transactional
+    public AdminSubscriptionDto extendSubscription(Long id, LocalDate newEndDate) {
+        Subscription sub = subscriptionRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Subscription", id));
+        if (newEndDate.isBefore(LocalDate.now())) {
+            throw new IllegalArgumentException("newEndDate must be today or in the future");
+        }
+        LocalDate oldEnd = sub.getEndDate();
+        sub.setEndDate(newEndDate);
+        if (!"ACTIVE".equals(sub.getStatus())) {
+            sub.setStatus("ACTIVE");
+        }
+        sub.setActive(true);
+        subscriptionRepository.save(sub);
+        log.info("Admin: extended subscription id={} endDate {} → {}", id, oldEnd, newEndDate);
+        return toSubDto(sub);
     }
 
     // ── Payments ──────────────────────────────────────────────────────────────

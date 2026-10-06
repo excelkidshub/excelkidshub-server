@@ -8,6 +8,7 @@ import in.excelkidshub.platform.payment.dto.RefundResponse;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
+import java.time.LocalDate;
 import java.util.List;
 
 public interface AdminService {
@@ -18,8 +19,10 @@ public interface AdminService {
     AdminUserDto getUserById(Long id);
     void setUserStatus(Long id, boolean active);
 
-    Page<AdminSubscriptionDto> getSubscriptions(String status, Pageable pageable);
+    Page<AdminSubscriptionDto> getSubscriptions(String status, String search, Pageable pageable);
     void setSubscriptionStatus(Long id, String status);
+    AdminSubscriptionDto grantSubscription(GrantSubscriptionRequest request);
+    AdminSubscriptionDto extendSubscription(Long id, LocalDate newEndDate);
 
     Page<AdminPaymentDto> getPayments(String status, Pageable pageable);
 

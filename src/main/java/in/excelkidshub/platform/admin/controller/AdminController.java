@@ -8,15 +8,19 @@ import in.excelkidshub.platform.course.dto.CourseDto;
 import in.excelkidshub.platform.payment.dto.AdminRefundActionRequest;
 import in.excelkidshub.platform.payment.dto.PlanDto;
 import in.excelkidshub.platform.payment.dto.RefundResponse;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
+
+import java.time.LocalDate;
 
 /**
  * Admin-only REST API.
@@ -69,12 +73,13 @@ public class AdminController {
     @GetMapping("/subscriptions")
     public ResponseEntity<ApiResponse<PageResponse<AdminSubscriptionDto>>> getSubscriptions(
             @RequestParam(required = false) String status,
+            @RequestParam(required = false) String search,
             @RequestParam(defaultValue = "0")  int page,
             @RequestParam(defaultValue = "20") int size) {
 
         Pageable pageable = PageRequest.of(page, Math.min(size, 100));
         return ResponseEntity.ok(ApiResponse.success("Subscriptions loaded",
-                PageResponse.of(adminService.getSubscriptions(status, pageable))));
+                PageResponse.of(adminService.getSubscriptions(status, search, pageable))));
     }
 
     @PutMapping("/subscriptions/{id}/status")
@@ -83,6 +88,22 @@ public class AdminController {
             @RequestParam String status) {
         adminService.setSubscriptionStatus(id, status);
         return ResponseEntity.ok(ApiResponse.success("Subscription status updated"));
+    }
+
+    @PostMapping("/subscriptions")
+    public ResponseEntity<ApiResponse<AdminSubscriptionDto>> grantSubscription(
+            @Valid @RequestBody GrantSubscriptionRequest request) {
+        AdminSubscriptionDto created = adminService.grantSubscription(request);
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(ApiResponse.success("Subscription granted successfully", created));
+    }
+
+    @PatchMapping("/subscriptions/{id}/extend")
+    public ResponseEntity<ApiResponse<AdminSubscriptionDto>> extendSubscription(
+            @PathVariable Long id,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate newEndDate) {
+        AdminSubscriptionDto updated = adminService.extendSubscription(id, newEndDate);
+        return ResponseEntity.ok(ApiResponse.success("Subscription extended to " + newEndDate, updated));
     }
 
     // ── Payments ──────────────────────────────────────────────────────────────
